@@ -1,0 +1,3 @@
+requests
+argparse 
+# concurrent.futures is built-in for Python 3.2+ (used for concurrency) 
