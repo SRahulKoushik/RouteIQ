@@ -73,15 +73,23 @@ def fetch_traffic_data(city: str = "Berlin", min_lat: float = None, min_lon: flo
         {"from": "B", "to": "E", "weight": 7, "from_pos": (52.5205, 13.4060), "to_pos": (52.5220, 13.4090)},
     ]
 
-def build_graph_from_traffic(data: List[Dict[str, Any]]) -> Graph:
+def build_graph_from_traffic(data: List[Dict[str, Any]], mode: str = "car") -> Graph:
     """
-    Builds a Graph object from traffic data (HERE or mock).
+    Builds a Graph object from traffic data (HERE or mock), adjusting edge weights based on transport mode.
     """
     graph = Graph()
     for segment in data:
+        weight = segment["weight"]
+        if mode == "bike":
+            # Penalize high congestion (mock: add 50% to weights >= 7)
+            if weight >= 7:
+                weight *= 1.5
+        elif mode == "public":
+            # Public transport is less affected by congestion (mock: halve all weights)
+            weight *= 0.5
         graph.add_node(segment["from"], position=segment["from_pos"])
         graph.add_node(segment["to"], position=segment["to_pos"])
-        graph.add_edge(segment["from"], segment["to"], segment["weight"])
+        graph.add_edge(segment["from"], segment["to"], weight)
     return graph
 
 def fetch_multiple_traffic_data(bboxes, city="Berlin"):

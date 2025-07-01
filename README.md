@@ -12,6 +12,10 @@
 - Shortest path search (Dijkstra & A*)
 - Realistic traffic data (HERE API or mock)
 - Congestion hotspot detection & avoidance
+- **Route visualization on interactive map** (`--visualize`)
+- **Historical traffic analysis** (record and report with `--record-snapshot`, `--historical-report`)
+- **Congestion alerts** (add, remove, and list with `--add-alert`, `--remove-alert`, `--list-alerts`)
+- **Multi-modal routing** (car, bike, public transport with `--mode`)
 - CLI interface: `python main.py --from X --to Y`
 - Modular, extensible codebase
 
@@ -37,6 +41,14 @@ $ pip install -r requirements.txt
 python main.py --from A --to D --algorithm astar --avoid-hotspots
 python main.py --from-lat 52.5200 --from-lon 13.4050 --to-lat 52.5210 --to-lon 13.4070 --algorithm astar
 python main.py --from-lat 52.5200 --from-lon 13.4050 --to-lat 52.5210 --to-lon 13.4070 --compare-algorithms
+python main.py --from A --to D --visualize
+python main.py --from A --to D --mode bike
+python main.py --from A --to D --mode public
+python main.py --from A --to D --record-snapshot
+python main.py --historical-report
+python main.py --add-alert A B
+python main.py --remove-alert A B
+python main.py --list-alerts
 ```
 
 - `--from`, `--to`: Start and end node IDs
@@ -45,6 +57,13 @@ python main.py --from-lat 52.5200 --from-lon 13.4050 --to-lat 52.5210 --to-lon 1
 - `--city`: City name (for HERE API)
 - `--compare-algorithms`: Run Dijkstra and A* in parallel and compare results.
 - `--poll-interval`: Set background traffic polling interval (default: 60s).
+- `--visualize`: Show the computed route and hotspots on an interactive map
+- `--mode`: Transport mode (`car`, `bike`, `public`)
+- `--record-snapshot`: Record a snapshot of current traffic data for historical analysis
+- `--historical-report`: Show average congestion per edge from historical data
+- `--add-alert FROM TO`: Add an alert for congestion on a specific edge
+- `--remove-alert FROM TO`: Remove an alert for a specific edge
+- `--list-alerts`: List all registered congestion alerts
 
 ## 🗺️ Example
 ```

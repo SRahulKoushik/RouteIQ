@@ -50,6 +50,13 @@ def main():
     parser.add_argument("--city", default="Berlin", help="City name (for HERE API)")
     parser.add_argument("--poll-interval", type=int, default=60, help="Traffic polling interval in seconds (default: 60)")
     parser.add_argument("--compare-algorithms", action="store_true", help="Compare Dijkstra and A* in parallel threads")
+    parser.add_argument("--visualize", action="store_true", help="Visualize the route and congestion hotspots on a map")
+    parser.add_argument("--record-snapshot", action="store_true", help="Record a snapshot of current traffic data for historical analysis")
+    parser.add_argument("--historical-report", action="store_true", help="Show average congestion per edge from historical data")
+    parser.add_argument("--add-alert", nargs=2, metavar=("FROM", "TO"), help="Add an alert for congestion on a specific edge (FROM TO)")
+    parser.add_argument("--remove-alert", nargs=2, metavar=("FROM", "TO"), help="Remove an alert for a specific edge (FROM TO)")
+    parser.add_argument("--list-alerts", action="store_true", help="List all registered congestion alerts")
+    parser.add_argument("--mode", choices=["car", "bike", "public"], default="car", help="Transport mode: car, bike, or public (default: car)")
     args = parser.parse_args()
 
     # Determine start and end nodes
@@ -60,7 +67,7 @@ def main():
         min_lon = min(args.from_lon, args.to_lon)
         max_lon = max(args.from_lon, args.to_lon)
         data = fetch_traffic_data(args.city, min_lat, min_lon, max_lat, max_lon)
-        graph = build_graph_from_traffic(data)
+        graph = build_graph_from_traffic(data, mode=args.mode)
         # Start background polling thread
         poll_thread = threading.Thread(target=poll_traffic, args=(graph, args.city, min_lat, min_lon, max_lat, max_lon, args.poll_interval), daemon=True)
         poll_thread.start()
@@ -71,7 +78,7 @@ def main():
             return
     elif args.start is not None and args.end is not None:
         data = fetch_traffic_data(args.city)
-        graph = build_graph_from_traffic(data)
+        graph = build_graph_from_traffic(data, mode=args.mode)
         # Start background polling thread (city-wide)
         poll_thread = threading.Thread(target=poll_traffic, args=(graph, args.city, None, None, None, None, args.poll_interval), daemon=True)
         poll_thread.start()
@@ -127,4 +134,82 @@ def main():
             for from_node, to_node, weight in hotspots:
                 print(f"  {from_node} -> {to_node} (weight: {weight})")
         else:
-            print("No congestion hotspots detected.") 
+            print("No congestion hotspots detected.")
+        # Visualization
+        if args.visualize:
+            try:
+                from .visualization import plot_route_map
+                plot_route_map(graph, path, hotspots)
+            except ImportError:
+                print("Visualization requires the 'folium' package. Please install it with 'pip install folium'.")
+
+    # After graph is built, before/after route computation
+    if args.record_snapshot:
+        try:
+            from .historical_traffic import save_traffic_snapshot
+            save_traffic_snapshot(data)
+            print("Traffic snapshot recorded.")
+        except ImportError:
+            print("Snapshot recording requires the 'historical_traffic' module.")
+
+    # Historical report (can be run standalone)
+    if args.historical_report:
+        try:
+            from .historical_traffic import load_historical_data, average_congestion_per_edge
+            historical_data = load_historical_data()
+            if not historical_data:
+                print("No historical data found.")
+            else:
+                averages = average_congestion_per_edge(historical_data)
+                print("Average congestion per edge (historical):")
+                for edge, avg in averages.items():
+                    print(f"  {edge}: {avg:.2f}")
+        except ImportError:
+            print("Historical analysis requires the 'historical_traffic' module.")
+        return
+
+    # Alert management (standalone)
+    if args.add_alert:
+        from_node, to_node = args.add_alert
+        try:
+            from .alerts import add_alert
+            if add_alert(from_node, to_node):
+                print(f"Alert added for {from_node} -> {to_node}.")
+            else:
+                print(f"Alert for {from_node} -> {to_node} already exists.")
+        except ImportError:
+            print("Alert management requires the 'alerts' module.")
+        return
+    if args.remove_alert:
+        from_node, to_node = args.remove_alert
+        try:
+            from .alerts import remove_alert
+            if remove_alert(from_node, to_node):
+                print(f"Alert removed for {from_node} -> {to_node}.")
+            else:
+                print(f"No alert found for {from_node} -> {to_node}.")
+        except ImportError:
+            print("Alert management requires the 'alerts' module.")
+        return
+    if args.list_alerts:
+        try:
+            from .alerts import list_alerts
+            alerts = list_alerts()
+            if not alerts:
+                print("No alerts registered.")
+            else:
+                print("Registered alerts:")
+                for alert in alerts:
+                    print(f"  {alert['from']} -> {alert['to']}")
+        except ImportError:
+            print("Alert management requires the 'alerts' module.")
+        return
+
+    # After fetching traffic data, check for triggered alerts
+    try:
+        from .alerts import check_alerts
+        alert_msgs = check_alerts(data)
+        for msg in alert_msgs:
+            print(msg)
+    except ImportError:
+        pass 
